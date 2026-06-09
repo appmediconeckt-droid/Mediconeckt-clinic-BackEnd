@@ -7,8 +7,11 @@ import {
   updateWalkinAppointment,
   deleteWalkinAppointment,
 } from "../controllers/walkinAppointmentController.js";
+import { protect } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+
+router.use(protect);
 
 // Create
 router.post("/", createWalkinAppointment);

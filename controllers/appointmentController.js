@@ -72,12 +72,10 @@ export const createAppointment = async (req, res) => {
   }
 };
 
-// GET ALL APPOINTMENTS
 
-export const getAppointments = async (
-  req,
-  res
-) => {
+
+// GET ALL APPOINTMENTS
+export const getAppointments = async (req, res) => {
   try {
     const {
       doctor_id,
@@ -89,39 +87,41 @@ export const getAppointments = async (
       SELECT
       a.*,
       p.full_name AS patient_name,
+      p.contact_number AS patient_phone,
       d.full_name AS doctor_name,
+      d.contact_number AS doctor_phone,
+      d.age AS doctor_age,
+      p.age AS patient_age,
+      p.gender AS patient_gender,
+      d.gender AS doctor_gender,
+      p.blood_group AS patient_blood_group,
+      d.blood_group AS doctor_blood_group,
       c.clinic_name
       FROM appointments a
-      JOIN users p ON a.patient_id=p.id
-      JOIN users d ON a.doctor_id=d.id
-      JOIN clinics c ON a.clinic_id=c.id
+      JOIN users p ON a.patient_id = p.id
+      JOIN users d ON a.doctor_id = d.id
+      JOIN clinics c ON a.clinic_id = c.id
       WHERE 1=1
     `;
 
     let params = [];
 
     if (doctor_id) {
-      query += " AND a.doctor_id=?";
+      query += " AND a.doctor_id = ?";
       params.push(doctor_id);
     }
 
     if (patient_id) {
-      query += " AND a.patient_id=?";
+      query += " AND a.patient_id = ?";
       params.push(patient_id);
     }
 
     if (appointment_status) {
-      query +=
-        " AND a.appointment_status=?";
-      params.push(
-        appointment_status
-      );
+      query += " AND a.appointment_status = ?";
+      params.push(appointment_status);
     }
 
-    const [rows] = await db.query(
-      query,
-      params
-    );
+    const [rows] = await db.query(query, params);
 
     res.json({
       success: true,
@@ -136,53 +136,51 @@ export const getAppointments = async (
 };
 
 // GET APPOINTMENT BY ID
-export const getAppointmentById =
-  async (req, res) => {
-    try {
-      const { id } = req.params;
+// GET APPOINTMENT BY ID
+export const getAppointmentById = async (req, res) => {
+  try {
+    const { id } = req.params;
 
-      const [rows] =
-        await db.query(
-          `
-        SELECT
-        a.*,
-        p.full_name AS patient_name,
-        d.full_name AS doctor_name,
-        c.clinic_name
-        FROM appointments a
-        JOIN users p ON a.patient_id=p.id
-        JOIN users d ON a.doctor_id=d.id
-        JOIN clinics c ON a.clinic_id=c.id
-        WHERE a.id=?
-      `,
-          [id]
-        );
+    const [rows] = await db.query(
+      `
+      SELECT
+      a.*,
+      p.full_name AS patient_name,
+      p.contact_number AS patient_phone,
+      p.age AS patient_age,
+      p.gender AS patient_gender,
+      d.full_name AS doctor_name,
+      d.contact_number AS doctor_phone,
+      d.age AS doctor_age,
+      d.gender AS doctor_gender,
+      c.clinic_name
+      FROM appointments a
+      JOIN users p ON a.patient_id = p.id
+      JOIN users d ON a.doctor_id = d.id
+      JOIN clinics c ON a.clinic_id = c.id
+      WHERE a.id = ?
+    `,
+      [id]
+    );
 
-      if (
-        rows.length === 0
-      ) {
-        return res
-          .status(404)
-          .json({
-            success: false,
-            message:
-              "Appointment not found",
-          });
-      }
-
-      res.json({
-        success: true,
-        data: rows[0],
-      });
-    } catch (error) {
-      res.status(500).json({
+    if (rows.length === 0) {
+      return res.status(404).json({
         success: false,
-        message:
-          error.message,
+        message: "Appointment not found",
       });
     }
-  };
 
+    res.json({
+      success: true,
+      data: rows[0],
+    });
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message,
+    });
+  }
+};
   // UPDATE APPOINTMENT
   export const updateAppointment =
   async (req, res) => {

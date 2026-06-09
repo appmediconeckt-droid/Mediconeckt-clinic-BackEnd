@@ -8,14 +8,21 @@ export const createClinic = async (req, res) => {
     console.log("FILE =>", req.file);
 
     const {
-      doctor_id,
       clinic_name,
       phone_number,
       location,
     } = req.body;
 
+    if (req.user.role?.toLowerCase() !== "doctor") {
+      return res.status(403).json({
+        success: false,
+        message: "Only doctors can create clinics",
+      });
+    }
+
+    const doctor_id = req.user.id;
+
     if (
-      !doctor_id ||
       !clinic_name ||
       !phone_number ||
       !location

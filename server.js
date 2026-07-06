@@ -13,6 +13,8 @@ import followupRoutes from './routes/followupRoutes.js';
 import notificationRoutes from "./routes/notificationRoutes.js";
 import { initializeChatSocket } from "./sockets/chatSocket.js";
 import availabilityRoutes from './routes/availabilityRoutes.js';
+import leaveRoutes from './routes/leaveRoutes.js';
+import medicationRoutes from './routes/medicationRoutes.js';
 
 dotenv.config();
 
@@ -31,7 +33,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.text({ type: "text/plain" }));
 app.use(express.urlencoded({ extended: true }));
-app.use("/uploads", express.static(path.join(process.cwd(), "uploads")));
+app.use("/uploads", express.static("uploads"));
 
 app.use("/api/users", userRoutes);
 app.use(
@@ -50,6 +52,8 @@ app.use(
 app.use('/api/chat', chatRoutes);
 app.use('/api/followups', followupRoutes);
 app.use("/api", notificationRoutes);
+app.use('/api/leaves', leaveRoutes);
+app.use('/api/medications', medicationRoutes);
 
 app.get("/", (req, res) => {
   res.send("API Running...");

@@ -94,6 +94,9 @@ export const register = async (req, res) => {
       staff_id,
       nursing_license,
       shift,
+      shift_time, 
+        shift_start_time, 
+        shift_end_time,
       assigned_ward,
       years_of_experience,
       qualifications,
@@ -197,6 +200,9 @@ export const register = async (req, res) => {
         staff_id,
         nursing_license,
         shift,
+         shift_time, 
+          shift_start_time,
+            shift_end_time,
         assigned_ward,
         years_of_experience,
         qualifications,
@@ -227,18 +233,7 @@ export const register = async (req, res) => {
         software_expertise
       )
       VALUES
-      (
-        ?,?,?,?,?,
-        ?,
-        ?,?,?,?,?,?,?,?,?,
-        ?,?,?,?,?,?,?,?,
-        ?,?,?,
-        ?,?,?,
-        ?,?,?,
-        ?,?,?,
-        ?,?,?,
-        ?,?
-      )
+     VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
       `,
       [
         role,
@@ -262,6 +257,9 @@ export const register = async (req, res) => {
         staff_id || null,
         nursing_license || null,
         shift || null,
+        shift_time || null,
+          shift_start_time || null,
+            shift_end_time || null,
         assigned_ward || null,
         years_of_experience || null,
         qualifications || null,
@@ -294,49 +292,54 @@ export const register = async (req, res) => {
       ]
     );
 
-    const userId = result.insertId;
-let qrCode = null;
+   const userId = result.insertId;
+
+let profileQrCode = null;
+let appointmentQrCode = null;
+let profileQrUrl = null;
+let appointmentQrUrl = null;
 
 if (role === "doctor") {
-  const qrData = {
-    userId,
-    role: "doctor",
-    full_name,
-    email,
-    contact_number,
-    speciality: speciality || null,
-  };
+  const FRONTEND_URL = process.env.FRONTEND_URL || "http://localhost:5173";
 
-  qrCode = await QRCode.toDataURL(JSON.stringify(qrData));
+  profileQrUrl = `${FRONTEND_URL}/doctor-details/${userId}`;
+  appointmentQrUrl = `${FRONTEND_URL}/walk-in-appointment`;
+
+  profileQrCode = await QRCode.toDataURL(profileQrUrl);
+  appointmentQrCode = await QRCode.toDataURL(appointmentQrUrl);
 
   await db.query(
-    "UPDATE users SET qr_code=? WHERE id=?",
-    [qrCode, userId]
+    `
+    UPDATE users 
+    SET 
+      profile_qr_code = ?,
+      appointment_qr_code = ?,
+      profile_qr_url = ?,
+      appointment_qr_url = ?
+    WHERE id = ?
+    `,
+    [
+      profileQrCode,
+      appointmentQrCode,
+      profileQrUrl,
+      appointmentQrUrl,
+      userId,
+    ]
   );
 }
 
 
-
-res.status(201).json({
+return res.status(201).json({
   success: true,
   message:
     role === "doctor"
-      ? "Doctor registered successfully with QR code"
+      ? "Doctor registered successfully with QR codes"
       : "User registered successfully",
   userId,
-  qrCode,
-});
-
-
-
-   res.status(201).json({
-  success: true,
-  message:
-    role === "doctor"
-      ? "Doctor registered successfully with QR code"
-      : "User registered successfully",
-  userId,
-  qrCode,
+  profileQrCode,
+  appointmentQrCode,
+  profileQrUrl,
+  appointmentQrUrl,
 });
   } catch (error) {
     sendError(res, error);
@@ -356,7 +359,10 @@ export const getDoctorQRById = async (req, res) => {
         email,
         role,
         speciality,
-        qr_code
+        profile_qr_code,
+        appointment_qr_code,
+        profile_qr_url,
+        appointment_qr_url
       FROM users
       WHERE id = ?
       `,
@@ -388,6 +394,215 @@ export const getDoctorQRById = async (req, res) => {
 };
 
 
+export const getProfileById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const [user] = await db.query(
+      `
+      SELECT 
+        *
+      FROM users
+      WHERE id = ?
+      `,
+      [id]
+    );
+
+    if (user.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "User profile not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      message: "User profile fetched successfully",
+      data: user[0],
+    });
+  } catch (error) {
+    sendError(res, error);
+  }
+};
+
+export const updateProfileById = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      full_name,
+      contact_number,
+      speciality,
+
+      qualification,
+      experience,
+      languages,
+      position,
+      board_certification,
+
+      about_doctor,
+      expertise,
+      awards,
+      research_focus,
+
+      medical_degree,
+      residency,
+      fellowship,
+      special_training,
+
+      primary_specialties,
+      all_conditions,
+
+      primary_hospital,
+      hospital_address,
+      google_map_link,
+      all_hospitals,
+
+      video_visits,
+      today_available,
+      online_consultation,
+      doctor_location,
+      accepts_new_patients,
+      consultation_hours,
+
+      initial_consultation_fee,
+      follow_up_visit_fee,
+      insurance_accepted,
+
+      accepted_insurances,
+      insurance_note,
+    } = getRequestBody(req);
+
+    const [doctor] = await db.query(
+      "SELECT id, role FROM users WHERE id = ?",
+      [id]
+    );
+
+
+    if (doctor.length === 0) {
+      return res.status(404).json({
+        success: false,
+        message: "Doctor not found",
+      });
+    }
+
+    console.log("REQ BODY:", req.body);
+console.log("REQ FILE:", req.file);
+
+    // if (doctor[0].role !== "doctor") {
+    //   return res.status(400).json({
+    //     success: false,
+    //     message: "Only doctor profile can be updated",
+    //   });
+    // }
+   const profile_pic = req.file
+  ? `uploads/${req.file.filename}`
+  : null;
+
+    await db.query(
+      `
+      UPDATE users SET
+        full_name = COALESCE(?, full_name),
+        contact_number = COALESCE(?, contact_number),
+        speciality = COALESCE(?, speciality),
+
+        qualification = COALESCE(?, qualification),
+        experience = COALESCE(?, experience),
+        languages = COALESCE(?, languages),
+        profile_pic = COALESCE(?, profile_pic),
+        position = COALESCE(?, position),
+        board_certification = COALESCE(?, board_certification),
+
+        about_doctor = COALESCE(?, about_doctor),
+        expertise = COALESCE(?, expertise),
+        awards = COALESCE(?, awards),
+        research_focus = COALESCE(?, research_focus),
+
+        medical_degree = COALESCE(?, medical_degree),
+        residency = COALESCE(?, residency),
+        fellowship = COALESCE(?, fellowship),
+        special_training = COALESCE(?, special_training),
+
+        primary_specialties = COALESCE(?, primary_specialties),
+        all_conditions = COALESCE(?, all_conditions),
+
+        primary_hospital = COALESCE(?, primary_hospital),
+        hospital_address = COALESCE(?, hospital_address),
+        google_map_link = COALESCE(?, google_map_link),
+        all_hospitals = COALESCE(?, all_hospitals),
+
+        video_visits = COALESCE(?, video_visits),
+        today_available = COALESCE(?, today_available),
+        online_consultation = COALESCE(?, online_consultation),
+        doctor_location = COALESCE(?, doctor_location),
+        accepts_new_patients = COALESCE(?, accepts_new_patients),
+        consultation_hours = COALESCE(?, consultation_hours),
+
+        initial_consultation_fee = COALESCE(?, initial_consultation_fee),
+        follow_up_visit_fee = COALESCE(?, follow_up_visit_fee),
+        insurance_accepted = COALESCE(?, insurance_accepted),
+
+        accepted_insurances = COALESCE(?, accepted_insurances),
+        insurance_note = COALESCE(?, insurance_note)
+      WHERE id = ?
+      `,
+      [
+        full_name ?? null,
+        contact_number ?? null,
+        speciality ?? null,
+
+        qualification ?? null,
+        experience ?? null,
+        languages ?? null,
+         profile_pic,
+        position ?? null,
+        board_certification ?? null,
+
+        about_doctor ?? null,
+        expertise ?? null,
+        awards ?? null,
+        research_focus ?? null,
+
+        medical_degree ?? null,
+        residency ?? null,
+        fellowship ?? null,
+        special_training ?? null,
+
+        primary_specialties ?? null,
+        all_conditions ?? null,
+
+        primary_hospital ?? null,
+        hospital_address ?? null,
+        google_map_link ?? null,
+        all_hospitals ?? null,
+
+        video_visits ?? null,
+        today_available ?? null,
+        online_consultation ?? null,
+        doctor_location ?? null,
+        accepts_new_patients ?? null,
+        consultation_hours ?? null,
+
+        initial_consultation_fee ?? null,
+        follow_up_visit_fee ?? null,
+        insurance_accepted ?? null,
+
+        accepted_insurances ?? null,
+        insurance_note ?? null,
+
+        id,
+      ]
+    );
+
+   return res.status(200).json({
+  success: true,
+  message: "Doctor profile updated successfully",
+  profile_pic,
+});
+  } catch (error) {
+    sendError(res, error);
+  }
+};
 
 
 // ===============================
@@ -398,22 +613,23 @@ export const login = async (req, res) => {
     const {
       email,
       password,
+        role,
       device_id,
       device_name,
       device_verified,
       device_verification_code,
     } = getRequestBody(req);
 
-    if (!email || !password || !device_id) {
+    if (!email || !password || !role || !device_id) {
       return res.status(400).json({
         success: false,
-        message: "email, password and device_id are required",
+        message: "email, password, role and device_id are required",
       });
     }
 
     const [users] = await db.query(
-      "SELECT * FROM users WHERE email=?",
-      [email]
+      "SELECT * FROM users WHERE email=? AND role=?",
+      [email , role]
     );
 
     if (users.length === 0) {
@@ -559,6 +775,10 @@ export const getUsers = async (req, res) => {
       email,
       contact_number,
       speciality,
+      shift,
+      shift_time , 
+      shift_start_time,
+      shift_end_time,
       gender,
       blood_group,
       created_at
@@ -576,6 +796,29 @@ export const getUsers = async (req, res) => {
       query,
       values
     );
+
+ const transformedUsers = users.map(user => {
+      // If shift_start_time and shift_end_time exist in DB, use them
+      // Otherwise parse from shift_time
+      let shiftStartTime = user.shift_start_time || null;
+      let shiftEndTime = user.shift_end_time || null;
+      
+      // If shift_start_time/shift_end_time not in DB but shift_time exists, parse it
+      if ((!shiftStartTime || !shiftEndTime) && user.shift_time) {
+        const timeParts = user.shift_time.split('-');
+        if (timeParts.length === 2) {
+          shiftStartTime = timeParts[0].trim();
+          shiftEndTime = timeParts[1].trim();
+        }
+      }
+
+       return {
+        ...user,
+        shiftStartTime,
+        shiftEndTime,
+        shift_time: user.shift_time // Keep original for compatibility
+      };
+    });
 
     res.status(200).json({
       success: true,
@@ -614,7 +857,26 @@ export const getUserById = async (
       });
     }
 
-    delete users[0].password;
+    const user = users[0];
+    
+    // Transform shift time data
+    let shiftStartTime = user.shift_start_time || null;
+    let shiftEndTime = user.shift_end_time || null;
+    
+    // If separate fields not in DB but shift_time exists, parse it
+    if ((!shiftStartTime || !shiftEndTime) && user.shift_time) {
+      const timeParts = user.shift_time.split('-');
+      if (timeParts.length === 2) {
+        shiftStartTime = timeParts[0].trim();
+        shiftEndTime = timeParts[1].trim();
+      }
+    }
+    
+    // Add transformed fields to response
+    user.shiftStartTime = shiftStartTime;
+    user.shiftEndTime = shiftEndTime;
+    
+    delete user.password;
 
     res.status(200).json({
       success: true,
@@ -629,13 +891,165 @@ export const getUserById = async (
 // ===============================
 // UPDATE USER
 // ===============================
-export const updateUser = async (
-  req,
-  res
-) => {
+// export const updateUser = async (
+//   req,
+//   res
+// ) => {
+//   try {
+//     const { id } = req.params;
+//     const body = getRequestBody(req);
+//     const fieldAliases = {
+//       name: "full_name",
+//       fullName: "full_name",
+//       fullname: "full_name",
+//       phone: "contact_number",
+//       phone_number: "contact_number",
+//       mobile: "contact_number",
+//       emailVerified: "email_verified",
+//       phoneVerified: "phone_verified",
+//       nurseId: "staff_id",
+//       staffId: "staff_id",
+//       employee_id: "staff_id",
+//       licenseNumber: "nursing_license",
+//       license_number: "nursing_license",
+//       ward: "assigned_ward",
+//       experience: "years_of_experience",
+//       assistantId: "assistant_id",
+//       technicianId: "technician_id",
+//       supervisorId: "supervisor_id",
+//       managerId: "manager_id",
+//       billingId: "billing_id",
+//       labType: "lab_type",
+//       assignedArea: "assigned_area",
+//       teamSize: "team_size",
+//       employeesUnder: "employees_under",
+//       budgetResponsibility: "budget_responsibility",
+//       softwareExpertise: "software_expertise",
+//     };
+//     const ignoredFields = new Set([
+//       "id",
+//       "userId",
+//       "success",
+//       "message",
+//       "status",
+//       "createdAt",
+//       "updatedAt",
+//       "lastLogin",
+//       "created_at",
+//       "updated_at",
+//       "last_login",
+//     ]);
+//     const allowedFields = new Set([
+//       "role",
+//       "full_name",
+//       "email",
+//       "contact_number",
+//       "speciality",
+//       "gender",
+//       "date_of_birth",
+//       "age",
+//       "address",
+//       "blood_group",
+//       "height_cm",
+//       "allergies",
+//       "medical_conditions",
+//       "current_medications",
+//       "staff_id",
+//       "nursing_license",
+//       "shift",
+//       "assigned_ward",
+//       "years_of_experience",
+//       "qualifications",
+//       "email_verified",
+//       "phone_verified",
+//       "assistant_id",
+//       "department",
+//       "supervisor",
+//       "technician_id",
+//       "lab_type",
+//       "certifications",
+//       "housekeeping_staff_id",
+//       "assigned_area",
+//       "housekeeping_supervisor",
+//       "supervisor_id",
+//       "team_size",
+//       "responsibilities",
+//       "manager_id",
+//       "employees_under",
+//       "budget_responsibility",
+//       "billing_id",
+//       "software_expertise",
+//     ]);
+
+//     const fields = [];
+//     const values = [];
+//     const invalidFields = [];
+//     const normalizedBody = {};
+
+//     Object.keys(body).forEach((key) => {
+//       if (ignoredFields.has(key)) {
+//         return;
+//       }
+
+//       const column = fieldAliases[key] || key;
+
+//       if (!allowedFields.has(column)) {
+//         invalidFields.push(key);
+//         return;
+//       }
+
+//       normalizedBody[column] = body[key];
+//     });
+
+//     if (invalidFields.length > 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message: `Invalid field(s): ${invalidFields.join(", ")}`,
+//       });
+//     }
+
+//     Object.entries(normalizedBody).forEach(([key, value]) => {
+//       fields.push(`${key}=?`);
+//       values.push(value);
+//     });
+
+//     if (fields.length === 0) {
+//       return res.status(400).json({
+//         success: false,
+//         message:
+//           "No fields provided for update",
+//       });
+//     }
+
+//     values.push(id);
+
+//     await db.query(
+//       `
+//       UPDATE users
+//       SET ${fields.join(",")}
+//       WHERE id=?
+//       `,
+//       values
+//     );
+
+//     res.status(200).json({
+//       success: true,
+//       message: "User updated successfully",
+//     });
+//   } catch (error) {
+//     sendError(res, error);
+//   }
+// };
+
+
+// ===============================
+// UPDATE USER
+// ===============================
+export const updateUser = async (req, res) => {
   try {
     const { id } = req.params;
     const body = getRequestBody(req);
+    
     const fieldAliases = {
       name: "full_name",
       fullName: "full_name",
@@ -663,60 +1077,35 @@ export const updateUser = async (
       employeesUnder: "employees_under",
       budgetResponsibility: "budget_responsibility",
       softwareExpertise: "software_expertise",
+      shiftTime: "shift_time",
+      shift_time: "shift_time",
+      shiftStartTime: "shift_start_time",
+      shift_start_time: "shift_start_time",
+      shiftEndTime: "shift_end_time",
+      shift_end_time: "shift_end_time",
+      shiftStart: "shift_start_time",
+      shiftEnd: "shift_end_time",
     };
+    
     const ignoredFields = new Set([
-      "id",
-      "userId",
-      "success",
-      "message",
-      "status",
-      "createdAt",
-      "updatedAt",
-      "lastLogin",
-      "created_at",
-      "updated_at",
-      "last_login",
+      "id", "userId", "success", "message", "status",
+      "createdAt", "updatedAt", "lastLogin",
+      "created_at", "updated_at", "last_login",
+      "password", "confirmPassword"
     ]);
+    
     const allowedFields = new Set([
-      "role",
-      "full_name",
-      "email",
-      "contact_number",
-      "speciality",
-      "gender",
-      "date_of_birth",
-      "age",
-      "address",
-      "blood_group",
-      "height_cm",
-      "allergies",
-      "medical_conditions",
-      "current_medications",
-      "staff_id",
-      "nursing_license",
-      "shift",
-      "assigned_ward",
-      "years_of_experience",
-      "qualifications",
-      "email_verified",
-      "phone_verified",
-      "assistant_id",
-      "department",
-      "supervisor",
-      "technician_id",
-      "lab_type",
-      "certifications",
-      "housekeeping_staff_id",
-      "assigned_area",
-      "housekeeping_supervisor",
-      "supervisor_id",
-      "team_size",
-      "responsibilities",
-      "manager_id",
-      "employees_under",
-      "budget_responsibility",
-      "billing_id",
-      "software_expertise",
+      "role", "full_name", "email", "contact_number", "speciality",
+      "gender", "date_of_birth", "age", "address", "blood_group",
+      "height_cm", "allergies", "medical_conditions", "current_medications",
+      "staff_id", "nursing_license", "shift", "shift_time",
+      "shift_start_time", "shift_end_time",  // ✅ ADD THESE
+      "assigned_ward", "years_of_experience", "qualifications",
+      "email_verified", "phone_verified", "assistant_id", "department",
+      "supervisor", "technician_id", "lab_type", "certifications",
+      "housekeeping_staff_id", "assigned_area", "housekeeping_supervisor",
+      "supervisor_id", "team_size", "responsibilities", "manager_id",
+      "employees_under", "budget_responsibility", "billing_id", "software_expertise"
     ]);
 
     const fields = [];
@@ -724,10 +1113,10 @@ export const updateUser = async (
     const invalidFields = [];
     const normalizedBody = {};
 
+    console.log("Update request body:", body);
+
     Object.keys(body).forEach((key) => {
-      if (ignoredFields.has(key)) {
-        return;
-      }
+      if (ignoredFields.has(key)) return;
 
       const column = fieldAliases[key] || key;
 
@@ -736,13 +1125,21 @@ export const updateUser = async (
         return;
       }
 
-      normalizedBody[column] = body[key];
+      if (body[key] !== undefined && body[key] !== null && body[key] !== '') {
+        normalizedBody[column] = body[key];
+      }
     });
+
+    // If both shift_start_time and shift_end_time are provided, also update shift_time for compatibility
+    if (normalizedBody.shift_start_time && normalizedBody.shift_end_time) {
+      normalizedBody.shift_time = `${normalizedBody.shift_start_time}-${normalizedBody.shift_end_time}`;
+    }
 
     if (invalidFields.length > 0) {
       return res.status(400).json({
         success: false,
         message: `Invalid field(s): ${invalidFields.join(", ")}`,
+        allowed_fields: Array.from(allowedFields),
       });
     }
 
@@ -754,31 +1151,54 @@ export const updateUser = async (
     if (fields.length === 0) {
       return res.status(400).json({
         success: false,
-        message:
-          "No fields provided for update",
+        message: "No fields provided for update",
       });
     }
 
     values.push(id);
 
-    await db.query(
-      `
-      UPDATE users
-      SET ${fields.join(",")}
-      WHERE id=?
-      `,
-      values
-    );
+    console.log("Update query:", `UPDATE users SET ${fields.join(",")} WHERE id=?`);
+    console.log("Update values:", values);
 
-    res.status(200).json({
-      success: true,
-      message: "User updated successfully",
-    });
+    await db.query(`UPDATE users SET ${fields.join(",")} WHERE id=?`, values);
+
+    // Fetch updated user
+    const [updatedUser] = await db.query("SELECT * FROM users WHERE id=?", [id]);
+    
+    if (updatedUser.length > 0) {
+      const user = updatedUser[0];
+      
+      // Transform response to include shiftStartTime and shiftEndTime
+      let shiftStartTime = user.shift_start_time;
+      let shiftEndTime = user.shift_end_time;
+      
+      if ((!shiftStartTime || !shiftEndTime) && user.shift_time) {
+        const timeParts = user.shift_time.split('-');
+        if (timeParts.length === 2) {
+          shiftStartTime = timeParts[0].trim();
+          shiftEndTime = timeParts[1].trim();
+        }
+      }
+      
+      user.shiftStartTime = shiftStartTime;
+      user.shiftEndTime = shiftEndTime;
+      delete user.password;
+      
+      res.status(200).json({
+        success: true,
+        message: "User updated successfully",
+        data: user,
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        message: "User updated successfully",
+      });
+    }
   } catch (error) {
     sendError(res, error);
   }
-};
-
+}; 
 
 // ===============================
 // DELETE USER

@@ -1,5 +1,6 @@
 import express from "express";
-import multer from "multer";
+import upload from "../middleware/upload.js";
+
 import {
   register,
   login,
@@ -7,13 +8,15 @@ import {
   getUserById,
   updateUser,
   deleteUser,
+  getProfileById ,
+  updateProfileById,
   getDoctorQRById,
   changePassword,
   verifyPassword,
 } from "../controllers/userController.js";
 
 const router = express.Router();
-const upload = multer();
+
 
 // Auth
 router.post("/register", upload.none(), register);
@@ -25,7 +28,12 @@ router.get("/:id", getUserById);
 router.patch("/:id", updateUser);
 router.delete("/:id", deleteUser);
 router.get("/doctor-qr/:id", getDoctorQRById);
-
+router.get("/doctor-profile/:id", getProfileById);
+router.put(
+  "/doctor-profile/:id",
+  upload.single("profilePic"),
+  updateProfileById
+);
 router.post("/change-password", changePassword);
 
 // Verify password route (optional - for confirmation before sensitive operations)

@@ -33,9 +33,9 @@ export const createClinic = async (req, res) => {
       });
     }
 
-    const clinic_photo = req.file
-      ? req.file.filename
-      : null;
+   const clinic_photo = req.file
+  ? `uploads/${req.file.filename}`
+  : null;
 
     const [result] = await db.query(
       `INSERT INTO clinics
@@ -145,10 +145,7 @@ export const getClinicById = async (
 
 
 // UPDATE CLINIC
-export const updateClinic = async (
-  req,
-  res
-) => {
+export const updateClinic = async (req, res) => {
   try {
     const { id } = req.params;
 
@@ -162,31 +159,37 @@ export const updateClinic = async (
     let clinic_photo = null;
 
     if (req.file) {
-      clinic_photo = req.file.filename;
+      clinic_photo = `uploads/${req.file.filename}`;
     }
 
     await db.query(
       `UPDATE clinics
-      SET
-      clinic_name=?,
-      phone_number=?,
-      location=?,
-      clinic_photo=COALESCE(?,clinic_photo),
-      status=?
-      WHERE id=?`,
+       SET
+        clinic_name=?,
+        phone_number=?,
+        location=?,
+        clinic_photo=COALESCE(?, clinic_photo),
+        status=COALESCE(?, status)
+       WHERE id=?`,
       [
         clinic_name,
         phone_number,
         location,
         clinic_photo,
-        status,
+        status || null,
         id,
       ]
+    );
+
+    const [updatedRows] = await db.query(
+      "SELECT * FROM clinics WHERE id=?",
+      [id]
     );
 
     res.status(200).json({
       success: true,
       message: "Clinic updated successfully",
+      data: updatedRows[0],
     });
   } catch (error) {
     res.status(500).json({
